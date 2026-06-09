@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/cadu/Documents/GitHub/inf1010/lab4/lab4'
+relocations:     []
+...

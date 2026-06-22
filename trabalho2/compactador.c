@@ -164,10 +164,8 @@ void gera_codigos(t_no* raiz, int* codigo, int tamanho) {
     gera_codigos(raiz->direito, codigo, tamanho + 1);
 }
 
+/* Função para compactar um arquivo usando a árvore de Huffman */
 void compacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
-
-    // Gera a tabela de códigos a partir da árvore de Huffman
-    gera_codigos(raiz, (int*)malloc(256 * sizeof(int)), 0);
 
     // Abre o arquivo de saída em modo binário ("wb")
     FILE* saida = fopen(arquivo_saida, "wb");
@@ -182,6 +180,8 @@ void compacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
         fclose(saida);
         return;
     }
+    unsigned char placeholder = 0;
+    fwrite(&placeholder, 1, 1, saida); // reserva espaço para o cabeçalho
 
     unsigned char buffer = 0;
     int bits_no_buffer = 0;
@@ -216,9 +216,14 @@ void compacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
         buffer <<= (8 - bits_no_buffer); // preenche os bits restantes com zeros
         fwrite(&buffer, 1, 1, saida);
     }
+    unsigned char bits_uteis = (bits_no_buffer == 0) ? 8 : bits_no_buffer;
+    fseek(saida, 0, SEEK_SET);
+    fwrite(&bits_uteis, 1, 1, saida);
+
     fclose(saida);
 }
 
+/* Função para descompactar um arquivo usando a árvore de Huffman*/
 void descompacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
     // Abre o arquivo de entrada em modo binário ("rb")
     FILE* entrada = fopen(arquivo_entrada, "rb");
@@ -234,20 +239,31 @@ void descompacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
         return;
     }
 
+    unsigned char bits_uteis_ultimo_byte;
+    fread(&bits_uteis_ultimo_byte, 1, 1, entrada);
+
+    // Para saber o tamanho total do arquivo (sem o cabeçalho):
+    fseek(entrada, 0, SEEK_END);
+    long tamanho = ftell(entrada) - 1; // -1 pelo byte de cabeçalho
+    fseek(entrada, 1, SEEK_SET);       // volta para depois do cabeçalho
+
     t_no* atual = raiz; // começa na raiz da árvore
     unsigned char byte;
     
-    while (fread(&byte, 1, 1, entrada) == 1) { // lê um byte do arquivo
-        for (int i = 7; i >= 0; i--) { // processa cada bit do byte
-            int bit = (byte >> i) & 1; // extrai o bit
-            if (bit == 0) {
-                atual = atual->esquerdo; // vai para a esquerda
-            } else {
-                atual = atual->direito; // vai para a direita
-            }
-            if (atual->esquerdo == NULL && atual->direito == NULL) { // se é folha
-                fputc(atual->caractere, saida); // escreve o caractere no arquivo de saída
-                atual = raiz; // volta para a raiz
+    long bytes_lidos = 0;
+    while (fread(&byte, 1, 1, entrada) == 1) {
+        bytes_lidos++;
+        int bits_neste_byte = (bytes_lidos == tamanho) ? bits_uteis_ultimo_byte : 8;
+        
+        for (int i = 7; i > (7 - bits_neste_byte); i--) { // só processa os bits úteis
+            int bit = (byte >> i) & 1;
+            if (bit == 0)
+                atual = atual->esquerdo;
+            else
+                atual = atual->direito;
+            if (atual->esquerdo == NULL && atual->direito == NULL) {
+                fputc(atual->caractere, saida);
+                atual = raiz;
             }
         }
     }
@@ -255,6 +271,7 @@ void descompacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
     fclose(saida);
 }
 
+/* Função que realiza todo o processo de compactação e descompactação e exibir etapas*/
 void realiza_processo (char* arquivo_entrada, char* arquivo_saida_compactado, char* arquivo_saida_descompactado) {
 
     /* Lendo o arquivo e criando a lista de ocorrências desordenada */

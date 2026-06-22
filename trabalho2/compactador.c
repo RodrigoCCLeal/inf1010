@@ -1,63 +1,7 @@
-/*2º. Trabalho de EDA – Compactação e descompactação de arquivos texto
-Descrição: O algoritmo de Huffman permite comprimir informação sem perda através da
-recodificação dos seus bytes. O algoritmo consiste de uma série de passos nos quais é possível
-construir a codificação (fluxo de bits comprimido) que substitui o fluxo de bits original.
-O princípio do algoritmo é de gerar códigos mais curtos para caracteres mais frequentes e
-códigos maiores para os caracteres menos frequentes.
-Um primeiro algoritmo de compactação poderia ser implementado da seguinte forma:
-onde:
-e assim sucessivamente, ...
-O caractere corresponderia ao código de 5 bits
-O caractere de corresponderia ao código de 5 bits
-Desta forma, este algoritmo de compactação iria ganhar 3 bits para cada caractere de 8 bits,
-onde um arquivo original de 1K bytes, seria comprimido para 640 bytes.
-Assim, o texto teria a representação em bits como:
-0100000101000010010100100100000101000011010000010100010001000001010000100101
-A B R A C A D A B
-00100100000100100001 - totalizando 12 x 8 = 96 bits
-R A !
-E o arquivo comprimido teria a seguinte representação em bits:
-000000000110001000000001000000000110000000001100010000011111-totalizando 60 bits
-A B R A C A D A B R A !
-Um segundo algoritmo, mais eficiente na compactação, foi proposto por Huffman. Este
-algoritmo permite comprimir informação, sem perda, também através da recodificação dos seus
-bytes. O algoritmo consiste de uma série de passos nos quais é possível construir a codificação
-(fluxo de bits comprimido) que substitui o fluxo de bits original. O princípio do algoritmo é de
-gerar códigos mais curtos para caracteres mais frequentes e códigos maiores para os
-caracteres menos frequentes (pesquisar sobre árvores Trie ou árvore de prefixos).
-De forma geral, o algoritmo consiste em construir um histograma dos caracteres utilizados no
-texto em ordem de frequência. Vamos supor que o texto seja e o histograma
-Assim, o histograma seria:
-ocorre 5 vezes
-ocorre 2 vezes
-ocorre 2 vezes
-ocorre 1 vez
-ocorre 1 vez
-Caractere ocorre 1 vez
-e (aqui representado como trocar caracter a caracter o código ASC estendido, de 8 bits
-Huffman propôs usar uma árvore de prefixos, onde os prefixos da representação em bits são
-únicos.
-Exemplo da árvore de prefixos e respectiva representação dos caracteres em bits:
-Desta forma, a representação interna do arquivo comprimido fica:
-0111110010110100011111001010 - totalizando 28 bits
-A B RA CA DA B RA !
-O trabalho de EDA consiste em implementar um compactador e um descompactador de
-arquivos de texto com base no algoritmo de Huffman.
-Para teste do algoritmo, pode ser usado um arquivo contendo a seguinte frase: “AS
-ESTRUTURAS DE DADOS SAO FUNDAMENTAIS PARA A ORGANIZACAO E A MANIPULACAO
-EFICIENTE DAS INFORMACOES”.
-Exiba a tabela obtida. Esta saída deve fazer parte do relatório.
-Para compactar e descompacatar o arquivo implemente uma tabela contendo o caractere e o
-número de ocorrências do caractere no texto e outra contendo o caractere, o código binário
-correspondente e o seu tamanho em bits.
-Siga as orientações de entrega de laboratórios descrita no EAD.
-Atenção: Trabalhos entregues com atraso sofrerão perda de 10% de sua nota por cada dia após
-o prazo de entrega.
-O arquivo a ser compactado e descompactado para verificação da correção do seu programa
-está no EAD.*/
+/* INF1010 - Trabalho 2 */
 
 /* Carlos Eduardo Pimentel Bernardo - 2510866 */
-/* Rodrigo Carvalho de Castro Leal - */
+/* Rodrigo Carvalho de Castro Leal - 2510091 */
 
 
 #include <stdio.h>
@@ -79,12 +23,6 @@ typedef struct {
 } t_codigo;
 
 t_codigo* tabela_codigos[256]; // tabela de códigos para cada caractere
-
-/* Protótipos das funções */
-t_no* cria_no(char caractere);
-t_no* cria_lista_ocorrencias(char* nome_arquivo);
-void imprime_lista(t_no* lista);
-
 
 /* Função para criar um novo nó da árvore de Huffman */
 t_no* cria_no(char caractere) {
@@ -163,6 +101,7 @@ void imprime_lista(t_no* lista) {
     }
 }
 
+/* Função para construir a árvore de Huffman a partir da lista de ocorrências organizada */
 t_no* controi_arvore(t_no* lista) {
     while (lista != NULL && lista->proximo != NULL) {
         // 1. Retira o primeiro nó (menor frequência)
@@ -178,7 +117,7 @@ t_no* controi_arvore(t_no* lista) {
         // 3. Cria o nó pai
         t_no* pai = (t_no*)malloc(sizeof(t_no));
         pai->caractere = '\0';
-        pai->ocorrencias = esquerdo->ocorrencias + direito->ocorrencias;
+        pai->ocorrencias = esquerdo->ocorrencias + direito->ocorrencias; // soma das ocorrências dos filhos 
         pai->esquerdo = esquerdo;
         pai->direito = direito;
         pai->proximo = NULL;
@@ -316,24 +255,46 @@ void descompacta(t_no* raiz, char* arquivo_entrada, char* arquivo_saida) {
     fclose(saida);
 }
 
-int main (void)
-{
-    t_no* lista = cria_lista_ocorrencias("teste1.txt");
+void realiza_processo (char* arquivo_entrada, char* arquivo_saida_compactado, char* arquivo_saida_descompactado) {
+
+    /* Lendo o arquivo e criando a lista de ocorrências desordenada */
+    t_no* lista = cria_lista_ocorrencias(arquivo_entrada);
     if (lista != NULL) {
         imprime_lista(lista);
     }
+
+    /* Organizando a lista por ocorrências */
     lista = organiza_lista_ordenada(lista);
     if (lista != NULL) {
         printf("\nLista organizada por ocorrencias:\n");
         imprime_lista(lista);
     }
+
+    /* Construindo a árvore de Huffman com base na lista organizada */
     printf("\nArvore de Huffman:\n");
     t_no* raiz = controi_arvore(lista);
+
     int codigo[256] = {0}; // tamanho máximo possível de um código
+
     printf("\nCaractere | Codigo | Tamanho\n");
     printf("--------------------------------\n");
+
+    /* Gerando os códigos de Huffman para cada caractere */
     gera_codigos(raiz, codigo, 0);
-    compacta(raiz, "teste1.txt", "teste1.huff");
-    descompacta(raiz, "teste1.huff", "teste1_descompactado.txt");
+
+    /* Compactando o arquivo */
+    compacta(raiz, arquivo_entrada, arquivo_saida_compactado);
+
+    /* Descompactando o arquivo */
+    descompacta(raiz, arquivo_saida_compactado, arquivo_saida_descompactado);
+
+}
+
+int main (void)
+{
+    realiza_processo("teste1.txt", "teste1_compactado.txt", "teste1_descompactado.txt");
+
+    realiza_processo("textoCompactadorDescompactador.txt", "textoCompactadorDescompactador_compactado.txt", "textoCompactadorDescompactador_descompactado.txt");
+
     return 0;
 }
